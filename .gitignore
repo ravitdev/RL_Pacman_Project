@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.env
+models/dqn_seed_1/final_model.zip
+models/test_model.zip
