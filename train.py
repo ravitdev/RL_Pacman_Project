@@ -84,12 +84,20 @@ class CustomDQN(DQN):
                 batch_size, env=self._vec_normalize_env
             )
 
+            # =====================================================
+            # PREPARAR REWARDS Y DONES (CORRECCIÓN IMPORTANTE)
+            # =====================================================
+
+            rewards = replay_data.rewards.squeeze(1)
+            dones = replay_data.dones.squeeze(1)
+
             with torch.no_grad():
 
                 if self.double_q:
                     # ==============================
                     # DOUBLE DQN
                     # ==============================
+
                     next_actions = self.q_net(
                         replay_data.next_observations
                     ).argmax(dim=1)
@@ -106,13 +114,18 @@ class CustomDQN(DQN):
                     # ==============================
                     # DQN CLÁSICO
                     # ==============================
+
                     next_q_values = self.q_net_target(
                         replay_data.next_observations
                     )
                     next_q_values, _ = next_q_values.max(dim=1)
 
-                target_q_values = replay_data.rewards + (
-                    1 - replay_data.dones
+                # =====================================================
+                # TARGET CORRECTO (AHORA MISMA DIMENSIÓN)
+                # =====================================================
+
+                target_q_values = rewards + (
+                    1 - dones
                 ) * self.gamma * next_q_values
 
             current_q_values = self.q_net(
