@@ -16,6 +16,7 @@ results = []
 for exp in os.listdir(LOG_DIR):
 
     monitor_path = os.path.join(LOG_DIR, exp, "monitor.csv")
+    time_path = os.path.join(LOG_DIR, exp, "time.txt")
 
     if not os.path.exists(monitor_path):
         continue
@@ -30,20 +31,31 @@ for exp in os.listdir(LOG_DIR):
     last50_mean = last50.mean()
     last50_std = last50.std()
 
+    # Leer tiempo de entrenamiento si existe
+    training_time_min = None
+    if os.path.exists(time_path):
+        with open(time_path, "r") as f:
+            training_time_sec = float(f.read())
+            training_time_min = training_time_sec / 60.0
+
     results.append({
         "experiment": exp,
         "total_steps": total_steps,
         "global_mean": global_mean,
         "global_std": global_std,
         "last50_mean": last50_mean,
-        "last50_std": last50_std
+        "last50_std": last50_std,
+        "training_time_min": training_time_min
     })
 
 summary = pd.DataFrame(results)
 
 print("\nResumen general:")
-print(summary.sort_values("last50_mean", ascending=False))
-
+print(
+    summary
+    .sort_values("last50_mean", ascending=False)
+    .reset_index(drop=True)
+)
 
 # =====================================================
 # FUNCION PARA GRAFICAR
@@ -79,7 +91,6 @@ def plot_group(run_list, title, filename, label_parser=None):
 
     print(f"Saved {filename}")
 
-
 # =====================================================
 # SEPARAR POR TIMESTEPS
 # =====================================================
@@ -98,12 +109,10 @@ runs_big = summary[
     summary["total_steps"] >= 900000
 ]["experiment"].tolist()
 
-
 # =====================================================
 # ===================== 200K ==========================
 # =====================================================
 
-# 1️⃣ Batch Size (32, 64, 128)
 batch_200k = [
     r for r in runs_200k
     if "lr0.0001" in r
@@ -120,8 +129,6 @@ plot_group(
     label_parser=lambda r: r.split("_")[2].replace("bs","")
 )
 
-
-# 2️⃣ Buffer Size (25000, 50000, 100000)
 buffer_200k = [
     r for r in runs_200k
     if "lr0.0001" in r
@@ -138,8 +145,6 @@ plot_group(
     label_parser=lambda r: r.split("_")[3].replace("buf","")
 )
 
-
-# 3️⃣ Train Frequency (1,4,8)
 tf_200k = [
     r for r in runs_200k
     if "lr0.0001" in r
@@ -156,8 +161,6 @@ plot_group(
     label_parser=lambda r: r.split("_")[4].replace("tf","")
 )
 
-
-# 4️⃣ Loss (Huber vs MSE)
 loss_200k = [
     r for r in runs_200k
     if "lr0.0001" in r
@@ -174,8 +177,6 @@ plot_group(
     label_parser=lambda r: r.split("_")[5]
 )
 
-
-# 5️⃣ Learning Rate (1e-5, 1e-4, 5e-4)
 lr_200k = [
     r for r in runs_200k
     if "bs32" in r
@@ -192,12 +193,10 @@ plot_group(
     label_parser=lambda r: r.split("_")[1].replace("lr","")
 )
 
-
 # =====================================================
 # ===================== 500K ==========================
 # =====================================================
 
-# 1️⃣ Learning Rate (0.0001, 0.0003, 0.0005)
 lr_500k = [
     r for r in runs_500k
     if "bs128" in r
@@ -214,8 +213,6 @@ plot_group(
     label_parser=lambda r: r.split("_")[1].replace("lr","")
 )
 
-
-# 2️⃣ Buffer Size (25000, 50000, 100000)
 buffer_500k = [
     r for r in runs_500k
     if "lr0.0003" in r
@@ -231,7 +228,6 @@ plot_group(
     "buffer_500k.png",
     label_parser=lambda r: r.split("_")[3].replace("buf","")
 )
-
 
 # =====================================================
 # ============ 1M vs 2M vs 3M ========================

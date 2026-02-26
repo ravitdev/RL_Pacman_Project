@@ -25,9 +25,9 @@ parser.add_argument("--seed", type=int, default=1)
 parser.add_argument("--timesteps", type=int, default=200000)
 
 parser.add_argument("--lr", type=float, default=1e-4)
-parser.add_argument("--batch_size", type=int, default=32)
-parser.add_argument("--buffer_size", type=int, default=50000)
-parser.add_argument("--train_freq", type=int, default=4)
+parser.add_argument("--batch_size", type=int, default=128)
+parser.add_argument("--buffer_size", type=int, default=25000)
+parser.add_argument("--train_freq", type=int, default=1)
 
 parser.add_argument("--loss", type=str, default="huber")
 
