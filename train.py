@@ -2,13 +2,11 @@ import os
 import time
 import argparse
 import numpy as np
-import pandas as pd
 import gymnasium as gym
 import ale_py
 import torch
 import torch.nn.functional as F
 
-from stable_baselines3 import DQN
 from stable_baselines3.dqn.dqn import DQN as SB3_DQN
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
@@ -39,7 +37,7 @@ args = parser.parse_args()
 # CONFIG
 # =========================
 
-ALGO = args.algo
+ALGO = args.algo.lower()
 SEED = args.seed
 TIMESTEPS = args.timesteps
 
@@ -47,11 +45,11 @@ LR = args.lr
 BATCH = args.batch_size
 BUFFER = args.buffer_size
 TRAIN_FREQ = args.train_freq
-LOSS = args.loss
+LOSS = args.loss.lower()
 
 ENV_NAME = "ALE/Pacman-v5"
 
-exp_name = f"{ALGO}_{TIMESTEPS}_lr{LR}_bs{BATCH}_buf{BUFFER}_tf{TRAIN_FREQ}_{LOSS}_seed{SEED}"
+exp_name = f"final_{ALGO}_{TIMESTEPS}_lr{LR}_bs{BATCH}_buf{BUFFER}_tf{TRAIN_FREQ}_{LOSS}_seed{SEED}"
 
 log_dir = f"logs/{exp_name}"
 model_dir = f"models/{exp_name}"
@@ -68,14 +66,15 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 
 # =========================
-# CUSTOM LOSS
+# CUSTOM DQN / DDQN
 # =========================
 
 class CustomDQN(SB3_DQN):
 
-    def __init__(self, *args, loss_type="huber", **kwargs):
+    def __init__(self, *args, loss_type="huber", double_q=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_type = loss_type
+        self.double_q = double_q
 
     def train(self, gradient_steps: int, batch_size: int = 100):
 
@@ -85,8 +84,28 @@ class CustomDQN(SB3_DQN):
 
             with torch.no_grad():
 
-                next_q = self.q_net_target(replay_data.next_observations)
-                next_q, _ = next_q.max(dim=1)
+                if self.double_q:
+                    # Double DQN
+                    next_actions = self.q_net(
+                        replay_data.next_observations
+                    ).argmax(dim=1)
+
+                    next_q_target = self.q_net_target(
+                        replay_data.next_observations
+                    )
+
+                    next_q = next_q_target.gather(
+                        1,
+                        next_actions.unsqueeze(1)
+                    ).squeeze(1)
+
+                else:
+                    # Standard DQN
+                    next_q_target = self.q_net_target(
+                        replay_data.next_observations
+                    )
+
+                    next_q, _ = next_q_target.max(dim=1)
 
                 target_q = replay_data.rewards.flatten() + (
                     1 - replay_data.dones.flatten()
@@ -113,11 +132,9 @@ class CustomDQN(SB3_DQN):
 # =========================
 
 def make_env():
-
     env = gym.make(ENV_NAME)
     env = Monitor(env, log_dir)
     env.reset(seed=SEED)
-
     return env
 
 env = DummyVecEnv([make_env])
@@ -125,8 +142,6 @@ env = DummyVecEnv([make_env])
 # =========================
 # MODELO
 # =========================
-
-double_q = True if ALGO == "ddqn" else False
 
 model = CustomDQN(
     "CnnPolicy",
@@ -144,7 +159,8 @@ model = CustomDQN(
     verbose=1,
     seed=SEED,
     device="cuda",
-    loss_type=LOSS
+    loss_type=LOSS,
+    double_q=(ALGO == "ddqn")
 )
 
 # =========================
@@ -166,5 +182,8 @@ model.save(f"{model_dir}/model")
 with open(f"{log_dir}/time.txt", "w") as f:
     f.write(str(training_time))
 
-print("Training finished")
-print("Time:", training_time)
+print("\nTraining finished")
+print("Algorithm:", ALGO.upper())
+print("Seed:", SEED)
+print("Timesteps:", TIMESTEPS)
+print("Training time (seconds):", training_time)
