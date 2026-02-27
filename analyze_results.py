@@ -31,12 +31,13 @@ for exp in os.listdir(LOG_DIR):
     last50_mean = last50.mean()
     last50_std = last50.std()
 
-    # Leer tiempo de entrenamiento si existe
     training_time_min = None
     if os.path.exists(time_path):
         with open(time_path, "r") as f:
             training_time_sec = float(f.read())
             training_time_min = training_time_sec / 60.0
+
+    best_score = df["r"].max()
 
     results.append({
         "experiment": exp,
@@ -45,6 +46,7 @@ for exp in os.listdir(LOG_DIR):
         "global_std": global_std,
         "last50_mean": last50_mean,
         "last50_std": last50_std,
+        "best_score": best_score,
         "training_time_min": training_time_min
     })
 
@@ -105,8 +107,15 @@ runs_500k = summary[
     (summary["total_steps"] <= 550000)
 ]["experiment"].tolist()
 
+# Grandes normales (NO finales)
 runs_big = summary[
-    summary["total_steps"] >= 900000
+    (summary["total_steps"] >= 900000) &
+    (~summary["experiment"].str.startswith("final"))
+]["experiment"].tolist()
+
+# Solo finales
+runs_final = summary[
+    summary["experiment"].str.startswith("final")
 ]["experiment"].tolist()
 
 # =====================================================
@@ -129,70 +138,6 @@ plot_group(
     label_parser=lambda r: r.split("_")[2].replace("bs","")
 )
 
-buffer_200k = [
-    r for r in runs_200k
-    if "lr0.0001" in r
-    and "bs32" in r
-    and "tf4" in r
-    and "huber" in r
-    and ("buf25000" in r or "buf50000" in r or "buf100000" in r)
-]
-
-plot_group(
-    buffer_200k,
-    "Replay Buffer Size - 200k",
-    "buffer_200k.png",
-    label_parser=lambda r: r.split("_")[3].replace("buf","")
-)
-
-tf_200k = [
-    r for r in runs_200k
-    if "lr0.0001" in r
-    and "bs32" in r
-    and "buf50000" in r
-    and "huber" in r
-    and ("tf1" in r or "tf4" in r or "tf8" in r)
-]
-
-plot_group(
-    tf_200k,
-    "Train Frequency - 200k",
-    "train_freq_200k.png",
-    label_parser=lambda r: r.split("_")[4].replace("tf","")
-)
-
-loss_200k = [
-    r for r in runs_200k
-    if "lr0.0001" in r
-    and "bs32" in r
-    and "buf50000" in r
-    and "tf4" in r
-    and ("huber" in r or "mse" in r)
-]
-
-plot_group(
-    loss_200k,
-    "Loss Function - 200k",
-    "loss_200k.png",
-    label_parser=lambda r: r.split("_")[5]
-)
-
-lr_200k = [
-    r for r in runs_200k
-    if "bs32" in r
-    and "buf50000" in r
-    and "tf4" in r
-    and "huber" in r
-    and ("lr1e-05" in r or "lr0.0001" in r or "lr0.0005" in r)
-]
-
-plot_group(
-    lr_200k,
-    "Learning Rate - 200k",
-    "lr_200k.png",
-    label_parser=lambda r: r.split("_")[1].replace("lr","")
-)
-
 # =====================================================
 # ===================== 500K ==========================
 # =====================================================
@@ -213,24 +158,8 @@ plot_group(
     label_parser=lambda r: r.split("_")[1].replace("lr","")
 )
 
-buffer_500k = [
-    r for r in runs_500k
-    if "lr0.0003" in r
-    and "bs128" in r
-    and "tf1" in r
-    and "huber" in r
-    and ("buf25000" in r or "buf50000" in r or "buf100000" in r)
-]
-
-plot_group(
-    buffer_500k,
-    "Replay Buffer Size - 500k",
-    "buffer_500k.png",
-    label_parser=lambda r: r.split("_")[3].replace("buf","")
-)
-
 # =====================================================
-# ============ 1M vs 2M vs 3M ========================
+# ============ 1M vs 2M vs 3M (NORMALES) ==============
 # =====================================================
 
 plot_group(
@@ -238,6 +167,17 @@ plot_group(
     "Training Steps Comparison (1M vs 2M vs 3M)",
     "steps_comparison.png",
     label_parser=lambda r: r.split("_")[1]
+)
+
+# =====================================================
+# ================= MODELOS FINALES ===================
+# =====================================================
+
+plot_group(
+    runs_final,
+    "Final Models Comparison",
+    "final_models.png",
+    label_parser=lambda r: r.split("_")[1] + "_seed" + r.split("_")[-1].replace("seed","")
 )
 
 print("\n✅ ALL EXPERIMENT PLOTS GENERATED CORRECTLY.")
