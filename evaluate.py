@@ -4,7 +4,7 @@ import ale_py
 import numpy as np
 import pandas as pd
 import argparse
-import torch
+import time
 
 from stable_baselines3.dqn.dqn import DQN as SB3_DQN
 
@@ -17,14 +17,14 @@ gym.register_envs(ale_py)
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, required=True,
                     help="Path al modelo (sin .zip si quieres)")
-parser.add_argument("--episodes", type=int, default=20)
+parser.add_argument("--episodes", type=int, default=5)
 args = parser.parse_args()
 
 MODEL_PATH = args.model
 EPISODES = args.episodes
 
 # =========================
-# CUSTOM DQN (MISMA CLASE QUE TRAIN)
+# CUSTOM DQN
 # =========================
 
 class CustomDQN(SB3_DQN):
@@ -52,13 +52,12 @@ log_dir = os.path.join("logs", exp_name)
 print("\nEvaluating:", exp_name)
 
 # =========================
-# 1️⃣ MÉTRICAS DESDE TRAINING (monitor.csv)
+# MÉTRICAS DE TRAINING
 # =========================
 
 monitor_path = os.path.join(log_dir, "monitor.csv")
 
 if os.path.exists(monitor_path):
-
     df = pd.read_csv(monitor_path, skiprows=1)
 
     global_mean = df["r"].mean()
@@ -68,12 +67,11 @@ if os.path.exists(monitor_path):
     print("\n===== TRAINING METRICS =====")
     print(f"Media Global: {global_mean:.2f} ± {global_std:.2f}")
     print(f"Mejor Score: {best_score:.2f}")
-
 else:
     print("No monitor.csv encontrado")
 
 # =========================
-# 2️⃣ TIEMPO DE ENTRENAMIENTO
+# TIEMPO DE ENTRENAMIENTO
 # =========================
 
 time_path = os.path.join(log_dir, "time.txt")
@@ -87,13 +85,16 @@ else:
     print("No time.txt encontrado")
 
 # =========================
-# 3️⃣ EVALUACIÓN REAL (DETERMINÍSTICA)
+# EVALUACIÓN CON RENDER
 # =========================
 
 ENV_NAME = "ALE/Pacman-v5"
-env = gym.make(ENV_NAME)
+
+env = gym.make(ENV_NAME, render_mode="human")
 
 scores = []
+
+print("\nMostrando entorno...")
 
 for ep in range(EPISODES):
 
@@ -107,6 +108,9 @@ for ep in range(EPISODES):
         done = terminated or truncated
         total += reward
 
+        time.sleep(0.01)  # controla velocidad (puedes aumentar si va muy rápido)
+
+    print(f"Episodio {ep+1}: {total}")
     scores.append(total)
 
 env.close()
