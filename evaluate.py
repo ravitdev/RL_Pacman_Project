@@ -5,10 +5,8 @@ import numpy as np
 import pandas as pd
 import argparse
 import torch
-import torch.nn.functional as F
 
 from stable_baselines3.dqn.dqn import DQN as SB3_DQN
-from stable_baselines3.common.vec_env import DummyVecEnv
 
 gym.register_envs(ale_py)
 
@@ -18,7 +16,7 @@ gym.register_envs(ale_py)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, required=True,
-                    help="Path al modelo .zip (sin extensión si quieres)")
+                    help="Path al modelo (sin .zip si quieres)")
 parser.add_argument("--episodes", type=int, default=20)
 args = parser.parse_args()
 
@@ -26,11 +24,10 @@ MODEL_PATH = args.model
 EPISODES = args.episodes
 
 # =========================
-# CUSTOM DQN (IGUAL QUE TRAIN)
+# CUSTOM DQN (MISMA CLASE QUE TRAIN)
 # =========================
 
 class CustomDQN(SB3_DQN):
-
     def __init__(self, *args, loss_type="huber", double_q=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_type = loss_type
@@ -55,7 +52,7 @@ log_dir = os.path.join("logs", exp_name)
 print("\nEvaluating:", exp_name)
 
 # =========================
-# 1️⃣ METRICAS DESDE MONITOR.CSV
+# 1️⃣ MÉTRICAS DESDE TRAINING (monitor.csv)
 # =========================
 
 monitor_path = os.path.join(log_dir, "monitor.csv")
@@ -66,16 +63,10 @@ if os.path.exists(monitor_path):
 
     global_mean = df["r"].mean()
     global_std = df["r"].std()
-
-    last50 = df["r"].tail(50)
-    last50_mean = last50.mean()
-    last50_std = last50.std()
-
     best_score = df["r"].max()
 
     print("\n===== TRAINING METRICS =====")
     print(f"Media Global: {global_mean:.2f} ± {global_std:.2f}")
-    print(f"Últimos 50: {last50_mean:.2f} ± {last50_std:.2f}")
     print(f"Mejor Score: {best_score:.2f}")
 
 else:
@@ -96,15 +87,11 @@ else:
     print("No time.txt encontrado")
 
 # =========================
-# 3️⃣ EVALUACION REAL (DETERMINISTICA)
+# 3️⃣ EVALUACIÓN REAL (DETERMINÍSTICA)
 # =========================
 
 ENV_NAME = "ALE/Pacman-v5"
-
-def make_env():
-    return gym.make(ENV_NAME)
-
-env = make_env()
+env = gym.make(ENV_NAME)
 
 scores = []
 
